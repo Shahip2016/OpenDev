@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "opendev"
+version = "0.1.0"
+description = "OpenDev – An open AI-powered command-line agent for software engineering"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Nghi D. Q. Bui", email = "bdqnghi@gmail.com"},
+]
+dependencies = [
+    "pydantic>=2.0",
+    "openai>=1.0",
+    "httpx>=0.25",
+    "rich>=13.0",
+    "prompt-toolkit>=3.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+opendev = "opendev.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["opendev*"]
