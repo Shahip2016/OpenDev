@@ -21,6 +21,7 @@ from opendev.safety.undo import UndoManager
 from opendev.tools.file_handler import FileHandler
 from opendev.tools.mcp_client import MCPClientManager
 from opendev.tools.process_handler import ProcessHandler
+from opendev.tools.search_handler import SymbolSearchHandler
 from opendev.tools.registry import ToolExecutionContext, ToolRegistry
 from opendev.tools.schema_builder import ToolSchemaBuilder
 
@@ -82,9 +83,11 @@ def main() -> int:
 
     file_handler = FileHandler()
     process_handler = ProcessHandler()
+    symbol_handler = SymbolSearchHandler()
 
     registry.register_handler(file_handler)
     registry.register_handler(process_handler)
+    registry.register_handler(symbol_handler)
 
     mcp_client = MCPClientManager(registry)
     mcp_client.connect_all([f"{config.user_config_dir}/mcp.json"])
