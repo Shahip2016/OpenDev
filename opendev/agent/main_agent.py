@@ -18,6 +18,7 @@ import queue
 from typing import Any, Optional
 
 from opendev.agent.base import BaseAgent
+from opendev.agent.react_executor import ReactExecutor
 from opendev.config import AppConfig, ConfigManager
 from opendev.models import (
     ConversationHistory,
@@ -43,8 +44,10 @@ class MainAgent(BaseAgent):
         config: AppConfig,
         tool_registry: Any = None,
         mode_manager: Any = None,
+        memory_manager: Any = None,
         allowed_tools: Optional[list[str]] = None,
     ) -> None:
+        self._memory_manager = memory_manager
         self._allowed_tools = allowed_tools
         self.is_subagent: bool = allowed_tools is not None
         self._subagent_system_prompt: Optional[str] = None
@@ -182,111 +185,16 @@ class MainAgent(BaseAgent):
     ) -> str:
         """
         Run a full ReAct loop for the given query.
-
-        The ReAct loop alternates between reasoning and action phases:
-          Phase 0: Staged context management (compaction)
-          Phase 1: Thinking (optional, no tools)
-          Phase 2: Action (with tools)
-          Phase 3: Decision, dispatch, doom-loop detection
+        Delegates to ReactExecutor (Algorithm 1).
         """
-        # Add user message to history
-        self.history.add_user(query)
-
-        # Create iteration context
-        ctx = IterationContext(
-            max_iterations=self._config.max_iterations,
-            doom_loop_window=self._config.doom_loop_window,
-            doom_loop_threshold=self._config.doom_loop_threshold,
-            max_nudge_attempts=self._config.max_nudge_attempts,
-            max_todo_nudges=self._config.max_todo_nudges,
+        executor = ReactExecutor(
+            agent=self,
+            config=self._config,
+            tool_registry=self._tool_registry,
+            memory_manager=self._memory_manager,
         )
-
-        final_response = ""
-
-        while ctx.iteration < ctx.max_iterations and not ctx.cancelled:
-            ctx.iteration += 1
-
-            # -- Phase 0: Drain injection queue --
-            while not self._injection_queue.empty():
-                try:
-                    injected = self._injection_queue.get_nowait()
-                    self.history.add_user(injected)
-                except queue.Empty:
-                    break
-
-            # -- Phase 2: Action LLM call --
-            messages = self.history.to_api_format()
-            system_msg = {"role": "system", "content": self.system_prompt}
-            full_messages = [system_msg] + messages
-
-            response = self.call_llm(
-                messages=full_messages,
-                tools=self.tool_schemas if self.tool_schemas else None,
-                model_role="action",
-            )
-
-            # Parse the response
-            choice = response["choices"][0]
-            assistant_msg = choice["message"]
-            content = assistant_msg.get("content", "")
-            tool_calls_raw = assistant_msg.get("tool_calls", [])
-
-            # Record token usage
-            usage = response.get("usage", {})
-
-            if not tool_calls_raw:
-                # No tool calls → implicit completion
-                self.history.add_assistant(content=content)
-                final_response = content or ""
-                break
-
-            # Parse tool calls
-            tool_calls = []
-            for tc in tool_calls_raw:
-                func = tc.get("function", {})
-                args = func.get("arguments", "{}")
-                if isinstance(args, str):
-                    try:
-                        args = json.loads(args)
-                    except json.JSONDecodeError:
-                        args = {}
-                tool_calls.append(ToolCall(
-                    id=tc.get("id", ""),
-                    name=func.get("name", ""),
-                    arguments=args,
-                ))
-
-            self.history.add_assistant(content=content, tool_calls=tool_calls)
-
-            # -- Phase 3: Doom-loop detection & tool execution --
-            doom_detected = False
-            for tc in tool_calls:
-                if ctx.add_fingerprint(tc.fingerprint):
-                    doom_detected = True
-
-            if doom_detected:
-                warning = (
-                    "[SYSTEM WARNING] Agent is repeating the same action. "
-                    "Try a different approach."
-                )
-                self.history.add_user(warning)
-                continue
-
-            # Execute tools
-            for tc in tool_calls:
-                if self._tool_registry:
-                    result = self._tool_registry.execute(
-                        tc.name, tc.arguments, deps=deps,
-                    )
-                else:
-                    result = ToolResult(
-                        tool_call_id=tc.id,
-                        name=tc.name,
-                        content=f"Tool '{tc.name}' executed successfully.",
-                    )
-                self.history.add_tool_result(result)
-
-        return final_response
+        summary, error, latency = executor.execute(query, self.history, deps)
+        return summary
 
     # -- Injection queue (thread-safe message delivery) ---------------------
 

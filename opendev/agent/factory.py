@@ -16,6 +16,7 @@ from typing import Any, Optional
 from opendev.agent.main_agent import MainAgent
 from opendev.agent.subagent import SubAgentManager
 from opendev.config import AppConfig
+from opendev.context.memory import MemoryManager
 from opendev.skills.loader import SkillLoader
 
 
@@ -49,6 +50,7 @@ class AgentFactory:
         self._config = config
         self._tool_registry = tool_registry
         self._mode_manager = mode_manager
+        self._memory_manager = MemoryManager()
 
     def create_agents(self) -> AgentSuite:
         """
@@ -83,6 +85,7 @@ class AgentFactory:
             config=self._config,
             tool_registry=self._tool_registry,
             mode_manager=self._mode_manager,
+            memory_manager=self._memory_manager,
             allowed_tools=None,  # Full access
         )
 

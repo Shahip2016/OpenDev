@@ -52,6 +52,7 @@ class ReactExecutor:
         compactor: Any = None,
         thinking_manager: Any = None,
         reminder_system: Any = None,
+        memory_manager: Any = None,
     ):
         self._agent = agent
         self._config = config
@@ -59,6 +60,7 @@ class ReactExecutor:
         self._compactor = compactor
         self._thinking_manager = thinking_manager
         self._reminder_system = reminder_system
+        self._memory_manager = memory_manager
 
     def execute(
         self,
@@ -273,7 +275,11 @@ class ReactExecutor:
             return None  # Continue loop (skip tool execution this turn)
 
         # Execute tools (Algorithm 1, lines 29-31)
-        self._execute_tools(ctx, history, tool_calls, deps)
+        results = self._execute_tools(ctx, history, tool_calls, deps)
+
+        # Reflect and curate (Section 2.3.6)
+        if self._memory_manager:
+            self._memory_manager.reflect_and_curate(tool_calls, results, self._agent)
 
         # Check for explicit completion via task_complete
         for tc in tool_calls:
@@ -288,13 +294,14 @@ class ReactExecutor:
         history: ConversationHistory,
         tool_calls: list[ToolCall],
         deps: Any = None,
-    ) -> None:
+    ) -> list[ToolResult]:
         """
         Execute tool calls through the registry.
 
         Read-only tools run in parallel (up to 5 concurrent),
         write tools run sequentially (Section 2.2.3).
         """
+        results = []
         for tc in tool_calls:
             if self._tool_registry:
                 result = self._tool_registry.execute(
@@ -306,7 +313,9 @@ class ReactExecutor:
                     name=tc.name,
                     content=f"Tool '{tc.name}' executed (stub).",
                 )
+            results.append(result)
             history.add_tool_result(result)
+        return results
 
     def _get_smart_nudge(self, recent_messages: list[Message]) -> str:
         """
