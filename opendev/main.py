@@ -34,6 +34,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--thinking", choices=["high", "medium", "low", "off"], default="medium", help="Reasoning depth (default: medium)")
     parser.add_argument("--provider", choices=["anthropic", "openai"], default=None, help="Force LLM provider")
     parser.add_argument("--resume", type=str, metavar="SESSION_ID", help="Resume an existing session")
+    parser.add_argument("--tui", action="store_true", help="Launch interactive Textual TUI")
     return parser.parse_args()
 
 
@@ -106,34 +107,16 @@ def main() -> int:
     builder = ToolSchemaBuilder(registry)
     main_agent.tool_schemas = builder.build()
 
-    # 7. Start interactive REPL
-    try:
-        from rich.console import Console
-    except ImportError:
-        print("Error: 'rich' package not found. (Run: pip install rich)")
-        return 1
-
-    console = Console()
-    console.print(f"[bold green]OpenDev v0.1.0[/] initialized in [yellow]{config.agent_mode.value}[/] mode.")
-    console.print(f"Thinking: [cyan]{config.thinking_level.value}[/] | Tools: [cyan]{len(main_agent.tool_schemas)} loaded[/]")
-    
-    if args.resume:
-        history = session_mgr.load_session(args.resume)
-        if not history:
-            console.print(f"[bold red]Failed to load session {args.resume}[/]")
-            return 1
-        console.print(f"Resumed session [blue]{args.resume}[/]. Messages: {len(history.messages)}")
-    else:
-        import uuid
-        session_id = uuid.uuid4().hex[:8]
-        session_mgr.create_session(session_id)
-        console.print(f"New session started: [blue]{session_id}[/]")
+    # 7. Start interactive UI
+    if args.tui:
+        from opendev.tui import launch_tui
+        launch_tui(suite, config)
+        return 0
 
     # REPL loop (stub for actual toolkit prompt)
     console.print("\nType [dim]/help[/] for commands or just start typing tasks.")
     
     # In a full run, we would launch a prompt-toolkit REPL here.
-    # We exit cleanly for this skeleton implementation.
     return 0
 
 
