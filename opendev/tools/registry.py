@@ -62,8 +62,8 @@ class ToolRegistry:
     # Tools that are safe in plan mode (read-only)
     READ_ONLY_TOOLS = frozenset([
         "read_file", "list_files", "search", "find_symbol", "list_symbols",
-        "find_referencing_symbols", "fetch_url", "web_search",
-        "capture_web_screenshot", "list_processes", "get_process_output",
+        "find_referencing_symbols", "fetch_url", "web_search", "browse_url",
+        "capture_web_screenshot", "screenshot", "list_processes", "get_process_output",
         "list_todos", "search_tools",
     ])
 
