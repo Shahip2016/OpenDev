@@ -8,8 +8,7 @@ identical setup regardless of frontend. Three phases in strict order:
   Phase 3 (Main agent) → construct MainAgent with full tool access
 """
 
-from __future__ import annotations
-
+import os
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -17,7 +16,9 @@ from opendev.agent.main_agent import MainAgent
 from opendev.agent.subagent import SubAgentManager
 from opendev.config import AppConfig
 from opendev.context.memory import MemoryManager
+from opendev.persistence.snapshot_manager import SnapshotManager
 from opendev.skills.loader import SkillLoader
+from opendev.tools.system_handler import SystemHandler
 
 
 @dataclass
@@ -78,14 +79,30 @@ class AgentFactory:
         subagent_manager.register_defaults()
 
         if self._tool_registry:
-            self._tool_registry.set_subagent_manager(subagent_manager)
+            self._tool_registry.set_subagent_manager(
+                subagent_manager,
+                max_recursion=self._config.max_subagent_recursion
+            )
 
         # Phase 3: Main agent — full access to all tools
+        snapshot_manager = SnapshotManager(
+            workspace_dir=self._config.working_dir,
+            snapshot_dir=os.path.join(self._config.user_config_dir, "snapshots")
+        )
+
+        if self._tool_registry:
+            system_handler = SystemHandler(
+                working_dir=self._config.working_dir,
+                snapshot_manager=snapshot_manager
+            )
+            self._tool_registry.register_handler(system_handler)
+
         main_agent = MainAgent(
             config=self._config,
             tool_registry=self._tool_registry,
             mode_manager=self._mode_manager,
             memory_manager=self._memory_manager,
+            snapshot_manager=snapshot_manager,
             allowed_tools=None,  # Full access
         )
 

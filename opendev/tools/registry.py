@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import concurrent.futures
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from opendev.config import AgentMode
 from opendev.models import ToolResult
@@ -44,6 +44,7 @@ class ToolExecutionContext:
     ui_callback: Any = None
     file_time_tracker: Any = None
     working_dir: str = "."
+    depth: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -75,18 +76,19 @@ class ToolRegistry:
     ])
 
     def __init__(self):
-        self._handlers: dict[str, Callable] = {}
-        self._schemas: list[dict[str, Any]] = []
-        self._discovered_mcp_tools: set[str] = set()
-        self._mcp_schemas: list[dict[str, Any]] = []
+        self._handlers: Dict[str, Callable] = {}
+        self._schemas: List[Dict[str, Any]] = []
+        self._discovered_mcp_tools: Set[str] = set()
+        self._mcp_schemas: List[Dict[str, Any]] = []
         self._subagent_manager: Any = None
         self._skill_loader: Any = None
-        self._hooks: dict[str, list[Callable]] = {}
+        self._hooks: Dict[str, List[Callable]] = {}
         self._max_concurrent: int = 5
+        self._max_subagent_recursion: int = 3
 
     # -- Registration -------------------------------------------------------
 
-    def register(self, name: str, handler: Callable, schema: dict[str, Any]) -> None:
+    def register(self, name: str, handler: Callable, schema: Dict[str, Any]) -> None:
         """Register a tool with its handler and schema."""
         self._handlers[name] = handler
         self._schemas.append(schema)
@@ -105,13 +107,18 @@ class ToolRegistry:
         """Register the skill loader for invoke_skill tool."""
         self._skill_loader = loader
 
-    def set_subagent_manager(self, manager: Any) -> None:
+    def set_subagent_manager(self, manager: Any, max_recursion: int = 3) -> None:
         """Register the subagent manager for spawn_subagent tool."""
         self._subagent_manager = manager
+        self._max_subagent_recursion = max_recursion
+        
+        # Manually register the spawn_subagent tool if it's not already
+        if "spawn_subagent" not in self._handlers:
+            self.register("spawn_subagent", self._spawn_subagent_handler, {})
 
     # -- Schema access ------------------------------------------------------
 
-    def get_schemas(self) -> list[dict[str, Any]]:
+    def get_schemas(self) -> List[Dict[str, Any]]:
         """Return all tool schemas (builtin + discovered MCP + subagent)."""
         schemas = list(self._schemas)
 
@@ -128,7 +135,7 @@ class ToolRegistry:
     def execute(
         self,
         tool_name: str,
-        arguments: dict[str, Any],
+        arguments: Dict[str, Any],
         deps: Any = None,
         ctx: Optional[ToolExecutionContext] = None,
     ) -> ToolResult:
@@ -187,13 +194,53 @@ class ToolRegistry:
                 is_error=True,
             )
 
+    def _spawn_subagent_handler(self, args: Dict[str, Any], ctx: Optional[ToolExecutionContext] = None) -> ToolResult:
+        """Handler for spawning subagents with recursion safety (Section 2.2.7)."""
+        if not self._subagent_manager:
+            return ToolResult(tool_call_id="", name="spawn_subagent", content="Error: Subagent manager not available.", is_error=True)
+
+        # 1. Depth Check (Feature 4)
+        current_depth = ctx.depth if ctx else 0
+        if current_depth >= self._max_subagent_recursion:
+            return ToolResult(
+                tool_call_id="",
+                name="spawn_subagent",
+                content=f"Error: Subagent recursion limit reached ({self._max_subagent_recursion}). "
+                        f"Cannot spawn another subagent from depth {current_depth}.",
+                is_error=True,
+                summary="Recursion limit blocked spawning"
+            )
+
+        # 2. Extract arguments
+        agent_type = args.get("type")
+        query = args.get("query")
+        
+        if not agent_type or not query:
+            return ToolResult(tool_call_id="", name="spawn_subagent", content="Error: 'type' and 'query' are required.", is_error=True)
+
+        # 3. Spawn
+        try:
+            result_content = self._subagent_manager.spawn(
+                agent_type, 
+                query, 
+                depth=current_depth + 1
+            )
+            return ToolResult(
+                tool_call_id="",
+                name="spawn_subagent",
+                content=result_content,
+                summary=f"Spawned {agent_type} subagent"
+            )
+        except Exception as e:
+            return ToolResult(tool_call_id="", name="spawn_subagent", content=f"Error spawning subagent: {e}", is_error=True)
+
     def execute_batch(
         self,
-        calls: list[tuple[str, dict[str, Any]]],
+        calls: List[Tuple[str, Dict[str, Any]]],
         mode: str = "parallel",
         deps: Any = None,
         ctx: Optional[ToolExecutionContext] = None,
-    ) -> list[ToolResult]:
+    ) -> List[ToolResult]:
         """
         Execute multiple tool calls in batch.
 
@@ -232,7 +279,7 @@ class ToolRegistry:
         """Mark an MCP tool as discovered (include its schema)."""
         self._discovered_mcp_tools.add(tool_name)
 
-    def register_mcp_schemas(self, schemas: list[dict[str, Any]]) -> None:
+    def register_mcp_schemas(self, schemas: List[Dict[str, Any]]) -> None:
         """Register MCP tool schemas (from connected servers)."""
         self._mcp_schemas.extend(schemas)
 
@@ -245,7 +292,7 @@ class ToolRegistry:
         self._hooks[event].append(callback)
 
     def _fire_pre_hooks(
-        self, tool_name: str, arguments: dict[str, Any]
+        self, tool_name: str, arguments: Dict[str, Any]
     ) -> Optional[str]:
         """Fire pre-tool-use hooks. Returns block reason or None."""
         for hook in self._hooks.get("PRE_TOOL_USE", []):

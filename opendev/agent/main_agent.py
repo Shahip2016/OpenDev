@@ -14,12 +14,15 @@ Behavioral variation comes from construction parameters:
 from __future__ import annotations
 
 import json
+import os
 import queue
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from opendev.agent.base import BaseAgent
 from opendev.agent.react_executor import ReactExecutor
 from opendev.config import AppConfig, ConfigManager
+from opendev.persistence.snapshot_manager import SnapshotManager
+from opendev.persistence.tool_logger import ToolLogger
 from opendev.models import (
     ConversationHistory,
     IterationContext,
@@ -45,11 +48,14 @@ class MainAgent(BaseAgent):
         tool_registry: Any = None,
         mode_manager: Any = None,
         memory_manager: Any = None,
-        allowed_tools: Optional[list[str]] = None,
+        snapshot_manager: Any = None,
+        allowed_tools: Optional[List[str]] = None,
+        depth: int = 0,
     ) -> None:
         self._memory_manager = memory_manager
         self._allowed_tools = allowed_tools
         self.is_subagent: bool = allowed_tools is not None
+        self._depth = depth
         self._subagent_system_prompt: Optional[str] = None
 
         # Lazy HTTP client slots for the five model roles (Section 2.2.5)
@@ -64,6 +70,17 @@ class MainAgent(BaseAgent):
 
         # Conversation history
         self.history = ConversationHistory()
+
+        # Tool execution logger (Feature 2)
+        self.tool_logger = ToolLogger(
+            log_dir=os.path.join(config.user_config_dir, "logs")
+        )
+
+        # Snapshot manager (Feature 3)
+        self.snapshot_manager = snapshot_manager or SnapshotManager(
+            workspace_dir=config.working_dir,
+            snapshot_dir=os.path.join(config.user_config_dir, "snapshots")
+        )
 
         # Eager construction via parent
         super().__init__(config, tool_registry, mode_manager)
@@ -113,7 +130,7 @@ class MainAgent(BaseAgent):
 
         return "\n".join(parts)
 
-    def build_tool_schemas(self) -> list[dict[str, Any]]:
+    def build_tool_schemas(self) -> List[Dict[str, Any]]:
         """
         Return OpenAI-format tool schemas.
 
@@ -136,10 +153,10 @@ class MainAgent(BaseAgent):
 
     def call_llm(
         self,
-        messages: list[dict[str, Any]],
-        tools: Optional[list[dict[str, Any]]] = None,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
         model_role: str = "action",
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Execute a single LLM call.
 
@@ -148,7 +165,7 @@ class MainAgent(BaseAgent):
         model_config = self._config.models.resolve(model_role)
 
         # Build the request
-        request: dict[str, Any] = {
+        request: Dict[str, Any] = {
             "model": model_config.model,
             "messages": messages,
             "temperature": model_config.temperature,
@@ -192,6 +209,8 @@ class MainAgent(BaseAgent):
             config=self._config,
             tool_registry=self._tool_registry,
             memory_manager=self._memory_manager,
+            tool_logger=self.tool_logger,
+            depth=self._depth,
         )
         summary, error, latency = executor.execute(query, self.history, deps)
         return summary

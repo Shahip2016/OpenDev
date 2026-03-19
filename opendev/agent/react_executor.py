@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from opendev.config import AppConfig, ThinkingLevel
+from opendev.persistence.tool_logger import ToolLogger
 from opendev.models import (
     ConversationHistory,
     IterationContext,
@@ -53,6 +54,8 @@ class ReactExecutor:
         thinking_manager: Any = None,
         reminder_system: Any = None,
         memory_manager: Any = None,
+        tool_logger: Any = None,
+        depth: int = 0,
     ):
         self._agent = agent
         self._config = config
@@ -61,6 +64,8 @@ class ReactExecutor:
         self._thinking_manager = thinking_manager
         self._reminder_system = reminder_system
         self._memory_manager = memory_manager
+        self._tool_logger = tool_logger
+        self._depth = depth
 
     def execute(
         self,
@@ -180,7 +185,7 @@ class ReactExecutor:
         self,
         history: ConversationHistory,
         thinking_trace: Optional[str] = None,
-    ) -> tuple[str, list[ToolCall]]:
+    ) -> tuple[str, List[ToolCall]]:
         """
         Phase 2: Action LLM call with full tool schemas.
 
@@ -225,7 +230,7 @@ class ReactExecutor:
         ctx: IterationContext,
         history: ConversationHistory,
         response_content: str,
-        tool_calls: list[ToolCall],
+        tool_calls: List[ToolCall],
         deps: Any = None,
     ) -> Optional[str]:
         """
@@ -292,20 +297,33 @@ class ReactExecutor:
         self,
         ctx: IterationContext,
         history: ConversationHistory,
-        tool_calls: list[ToolCall],
+        tool_calls: List[ToolCall],
         deps: Any = None,
-    ) -> list[ToolResult]:
+    ) -> List[ToolResult]:
         """
         Execute tool calls through the registry.
 
         Read-only tools run in parallel (up to 5 concurrent),
         write tools run sequentially (Section 2.2.3).
         """
+        from opendev.tools.registry import ToolExecutionContext
+        
         results = []
         for tc in tool_calls:
+            if self._tool_logger:
+                self._tool_logger.log_call(tc)
+
             if self._tool_registry:
+                # Build context for this tool call (Section 2.4.1)
+                ctx_data = ToolExecutionContext(
+                    mode_manager=self._agent._mode_manager,
+                    undo_manager=getattr(self._agent, "undo_manager", None),
+                    working_dir=self._config.working_dir,
+                    depth=self._depth,
+                )
+                
                 result = self._tool_registry.execute(
-                    tc.name, tc.arguments, deps=deps,
+                    tc.name, tc.arguments, deps=deps, ctx=ctx_data
                 )
             else:
                 result = ToolResult(
@@ -314,10 +332,14 @@ class ReactExecutor:
                     content=f"Tool '{tc.name}' executed (stub).",
                 )
             results.append(result)
+            
+            if self._tool_logger:
+                self._tool_logger.log_result(result)
+
             history.add_tool_result(result)
         return results
 
-    def _get_smart_nudge(self, recent_messages: list[Message]) -> str:
+    def _get_smart_nudge(self, recent_messages: List[Message]) -> str:
         """
         Generate a targeted error recovery nudge (Section 2.3.5).
 

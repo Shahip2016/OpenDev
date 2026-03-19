@@ -17,7 +17,7 @@ import json
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -77,7 +77,7 @@ class ModelConfig(BaseModel):
 
     def resolve(self, role: str) -> ModelRoleConfig:
         """Resolve a model role with its fallback chain."""
-        fallback_chains: dict[str, list[str]] = {
+        fallback_chains: Dict[str, List[str]] = {
             "action":   ["action"],
             "thinking": ["thinking", "action"],
             "critique": ["critique", "thinking", "action"],
@@ -133,6 +133,7 @@ class AppConfig(BaseModel):
     max_output_chars: int = 30_000
     large_output_threshold: int = 8_000
     max_undo_history: int = 50
+    max_subagent_recursion: int = 3
 
     # Timeouts
     command_idle_timeout: int = 60
@@ -192,7 +193,7 @@ class ConfigManager:
 
     def _load(self) -> AppConfig:
         # Tier 1: built-in defaults
-        merged: dict[str, Any] = {}
+        merged: Dict[str, Any] = {}
 
         # Tier 2: environment variables (OPENDEV_* → lower-cased keys)
         env_overrides = self._collect_env_vars()
@@ -217,9 +218,9 @@ class ConfigManager:
 
         return AppConfig(**merged)
 
-    def _collect_env_vars(self) -> dict[str, Any]:
+    def _collect_env_vars(self) -> Dict[str, Any]:
         """Collect OPENDEV_* environment variables."""
-        result: dict[str, Any] = {}
+        result: Dict[str, Any] = {}
         for key, value in os.environ.items():
             if key.startswith(self.ENV_PREFIX):
                 config_key = key[len(self.ENV_PREFIX):].lower()
@@ -227,7 +228,7 @@ class ConfigManager:
         return result
 
     @staticmethod
-    def _load_json(path: Path) -> dict[str, Any]:
+    def _load_json(path: Path) -> Dict[str, Any]:
         """Load a JSON file, returning empty dict on failure."""
         try:
             if path.exists():
@@ -240,7 +241,7 @@ class ConfigManager:
         return {}
 
     @staticmethod
-    def _strip_api_keys(data: dict[str, Any]) -> dict[str, Any]:
+    def _strip_api_keys(data: Dict[str, Any]) -> Dict[str, Any]:
         """Remove any API key fields from config data (security measure)."""
         sensitive_keys = {"api_key", "api_secret", "token", "secret"}
         return {

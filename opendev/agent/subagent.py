@@ -17,7 +17,7 @@ Eight builtin subagent types with filtered tool access:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 from opendev.config import AppConfig
 
@@ -36,9 +36,9 @@ class SubAgentSpec(TypedDict, total=False):
     name: str
     description: str
     system_prompt: str
-    allowed_tools: Optional[list[str]]
+    allowed_tools: Optional[List[str]]
     model_override: Optional[str]
-    docker_config: Optional[dict[str, Any]]
+    docker_config: Optional[Dict[str, Any]]
 
 
 @dataclass
@@ -52,7 +52,7 @@ class CompiledSubAgent:
     name: str
     description: str
     agent: Any  # MainAgent instance
-    tool_list: list[str]
+    tool_list: List[str]
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ _READ_ONLY_TOOLS = [
 ]
 
 # Default tool sets for each builtin subagent type
-_BUILTIN_TOOL_SETS: dict[str, list[str]] = {
+_BUILTIN_TOOL_SETS: Dict[str, List[str]] = {
     "Code-Explorer": _READ_ONLY_TOOLS,
     "Planner": _READ_ONLY_TOOLS + ["write_file"],
     "PR-Reviewer": _READ_ONLY_TOOLS + ["run_command"],
@@ -105,7 +105,7 @@ class SubAgentManager:
         self._config = config
         self._tool_registry = tool_registry
         self._mode_manager = mode_manager
-        self._compiled: dict[str, CompiledSubAgent] = {}
+        self._compiled: Dict[str, CompiledSubAgent] = {}
 
     def register_subagent(self, spec: SubAgentSpec) -> CompiledSubAgent:
         """
@@ -153,7 +153,7 @@ class SubAgentManager:
 
     def register_defaults(self) -> None:
         """Register all eight builtin subagent types."""
-        defaults: list[SubAgentSpec] = [
+        defaults: List[SubAgentSpec] = [
             {
                 "name": "Code-Explorer",
                 "description": "Read-only codebase navigation and analysis",
@@ -245,11 +245,11 @@ class SubAgentManager:
         """Get a compiled subagent by name."""
         return self._compiled.get(name)
 
-    def list_agents(self) -> list[str]:
+    def list_agents(self) -> List[str]:
         """List all registered subagent names."""
         return list(self._compiled.keys())
 
-    def spawn(self, name: str, query: str, deps: Any = None) -> str:
+    def spawn(self, name: str, query: str, deps: Any = None, depth: int = 0) -> str:
         """
         Spawn a subagent to handle a specific query.
 
@@ -260,5 +260,9 @@ class SubAgentManager:
         if not compiled:
             return f"Error: Unknown subagent '{name}'"
 
+        # Update depth if needed (in full impl, we would create a copy of the agent or similar)
+        # For now, we manually set depth on the agent before run_sync
+        compiled.agent._depth = depth
+        
         # Run in isolated context (fresh history, no session persistence)
         return compiled.agent.run_sync(query, deps=deps)
