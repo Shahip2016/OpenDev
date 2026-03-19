@@ -9,14 +9,14 @@ Assembles JSON schemas from three sources:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 # ---------------------------------------------------------------------------
 # Built-in tool schema definitions
 # ---------------------------------------------------------------------------
 
-_BUILTIN_TOOL_SCHEMAS: list[dict[str, Any]] = [
+_BUILTIN_TOOL_SCHEMAS: List[Dict[str, Any]] = [
     # -- File Operations --
     {
         "type": "function",
@@ -377,12 +377,12 @@ class ToolSchemaBuilder:
     def __init__(
         self,
         registry: Any = None,
-        allowed_tools: Optional[list[str]] = None,
+        allowed_tools: Optional[List[str]] = None,
     ):
         self._registry = registry
         self._allowed_tools = allowed_tools
 
-    def build(self) -> list[dict[str, Any]]:
+    def build(self) -> List[Dict[str, Any]]:
         """Build the complete tool schema list."""
         schemas = list(_BUILTIN_TOOL_SCHEMAS)
 
@@ -402,6 +402,6 @@ class ToolSchemaBuilder:
         return schemas
 
     @staticmethod
-    def get_builtin_schemas() -> list[dict[str, Any]]:
+    def get_builtin_schemas() -> List[Dict[str, Any]]:
         """Return all builtin tool schemas."""
         return list(_BUILTIN_TOOL_SCHEMAS)

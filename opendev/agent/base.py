@@ -12,7 +12,7 @@ depends on, decoupling factory from concrete agent class.
 from __future__ import annotations
 
 import abc
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from opendev.config import AppConfig
 
@@ -31,7 +31,7 @@ class AgentInterface(Protocol):
     """
 
     system_prompt: str
-    tool_schemas: list[dict[str, Any]]
+    tool_schemas: List[Dict[str, Any]]
 
     def refresh_tools(self) -> None:
         """Re-invoke build methods when tool registry changes."""
@@ -39,10 +39,10 @@ class AgentInterface(Protocol):
 
     def call_llm(
         self,
-        messages: list[dict[str, Any]],
-        tools: Optional[list[dict[str, Any]]] = None,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
         model_role: str = "action",
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """Execute a single LLM call."""
         ...
 
@@ -85,7 +85,7 @@ class BaseAgent(abc.ABC):
 
         # Eager construction: build prompt and schemas immediately
         self.system_prompt: str = self.build_system_prompt()
-        self.tool_schemas: list[dict[str, Any]] = self.build_tool_schemas()
+        self.tool_schemas: List[Dict[str, Any]] = self.build_tool_schemas()
 
     @abc.abstractmethod
     def build_system_prompt(self) -> str:
@@ -93,17 +93,17 @@ class BaseAgent(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def build_tool_schemas(self) -> list[dict[str, Any]]:
+    def build_tool_schemas(self) -> List[Dict[str, Any]]:
         """Return OpenAI-format tool schemas."""
         ...
 
     @abc.abstractmethod
     def call_llm(
         self,
-        messages: list[dict[str, Any]],
-        tools: Optional[list[dict[str, Any]]] = None,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
         model_role: str = "action",
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """Execute a single LLM call."""
         ...
 

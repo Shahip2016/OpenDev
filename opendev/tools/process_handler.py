@@ -18,7 +18,7 @@ import re
 import subprocess
 import threading
 import time
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from opendev.models import ToolResult
 from opendev.tools.base_handler import BaseHandler
@@ -82,10 +82,10 @@ class ProcessHandler(BaseHandler):
 
     def __init__(self, working_dir: str = "."):
         super().__init__(working_dir)
-        self._background_tasks: dict[str, dict[str, Any]] = {}
+        self._background_tasks: Dict[str, Dict[str, Any]] = {}
         self._task_counter = 0
 
-    def get_tool_definitions(self) -> list[dict[str, Any]]:
+    def get_tool_definitions(self) -> List[Dict[str, Any]]:
         return [
             {"name": "run_command", "handler": self.run_command, "schema": {}},
             {"name": "list_processes", "handler": self.list_processes, "schema": {}},
@@ -93,7 +93,7 @@ class ProcessHandler(BaseHandler):
             {"name": "kill_process", "handler": self.kill_process, "schema": {}},
         ]
 
-    def run_command(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def run_command(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """Execute a shell command through the 6-stage pipeline."""
         command = args.get("command", "")
         timeout = args.get("timeout", 60)
@@ -237,7 +237,7 @@ class ProcessHandler(BaseHandler):
                 is_error=True,
             )
 
-    def _read_output(self, task: dict) -> None:
+    def _read_output(self, task: Dict) -> None:
         """Daemon thread: read process output lines."""
         process = task["process"]
         try:
@@ -250,7 +250,7 @@ class ProcessHandler(BaseHandler):
         except Exception:
             task["status"] = "FAILED"
 
-    def list_processes(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def list_processes(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """List all tracked background tasks."""
         if not self._background_tasks:
             return ToolResult(
@@ -270,7 +270,7 @@ class ProcessHandler(BaseHandler):
             content="Background tasks:\n" + "\n".join(lines),
         )
 
-    def get_process_output(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def get_process_output(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """Get last 100 lines from a background task."""
         task_id = args.get("task_id", "")
         task = self._background_tasks.get(task_id)
@@ -287,7 +287,7 @@ class ProcessHandler(BaseHandler):
             content=f"Output for {task_id} ({task['status']}):\n\n{output}",
         )
 
-    def kill_process(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def kill_process(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """Terminate a background task with graceful escalation."""
         task_id = args.get("task_id", "")
         task = self._background_tasks.get(task_id)

@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from difflib import SequenceMatcher
-from typing import Optional
+from typing import List, Optional
 
 
 class BaseReplacer(ABC):
@@ -245,7 +245,7 @@ class MultiOccurrenceReplacer(BaseReplacer):
 # Chain assembly
 # ---------------------------------------------------------------------------
 
-def build_replacer_chain() -> list[BaseReplacer]:
+def build_replacer_chain() -> List[BaseReplacer]:
     """Build the 9-pass fuzzy matching chain in priority order."""
     return [
         SimpleReplacer(),

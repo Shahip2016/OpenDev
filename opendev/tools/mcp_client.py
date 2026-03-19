@@ -8,7 +8,7 @@ Connects to local MCP servers to dynamically discover new tools
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Dict, List
 
 from opendev.tools.registry import ToolRegistry
 
@@ -23,10 +23,10 @@ class MCPClientManager:
 
     def __init__(self, registry: ToolRegistry):
         self._registry = registry
-        self._servers: dict[str, Any] = {}
+        self._servers: Dict[str, Any] = {}
         self._connected = False
 
-    def connect_all(self, config_paths: list[str]) -> int:
+    def connect_all(self, config_paths: List[str]) -> int:
         """
         Connect to all MCP servers defined in configuration files.
 
@@ -38,7 +38,7 @@ class MCPClientManager:
         self._connected = True
         return 0
 
-    def discover_tools(self) -> list[dict[str, Any]]:
+    def discover_tools(self) -> List[Dict[str, Any]]:
         """
         Query all connected servers for available tools.
         Returns a list of OpenAI-compatible function schemas.
@@ -49,14 +49,14 @@ class MCPClientManager:
         # (Stub implementation)
         # Would normally send "tools/list" request to MCP servers
         # and translate the JSONSchema responses to OpenAI format.
-        schemas: list[dict[str, Any]] = []
+        schemas: List[Dict[str, Any]] = []
 
         # Register discovered schemas with the ToolRegistry
         self._registry.register_mcp_schemas(schemas)
 
         return schemas
 
-    def execute_tool(self, server_name: str, tool_name: str, args: dict[str, Any]) -> Any:
+    def execute_tool(self, server_name: str, tool_name: str, args: Dict[str, Any]) -> Any:
         """
         Route tool execution request to the appropriate MCP server.
         """

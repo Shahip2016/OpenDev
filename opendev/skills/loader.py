@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -58,10 +58,10 @@ class SkillLoader:
             "user": user_dir,
             "project": project_dir,
         }
-        self._metadata: dict[str, SkillMetadata] = {}
-        self._loaded_cache: dict[str, LoadedSkill] = {}
+        self._metadata: Dict[str, SkillMetadata] = {}
+        self._loaded_cache: Dict[str, LoadedSkill] = {}
 
-    def discover(self) -> dict[str, SkillMetadata]:
+    def discover(self) -> Dict[str, SkillMetadata]:
         """
         Phase 1: Scan all skill directories and parse YAML frontmatter.
 
@@ -85,7 +85,7 @@ class SkillLoader:
 
         return self._metadata
 
-    def get_metadata_index(self) -> list[SkillMetadata]:
+    def get_metadata_index(self) -> List[SkillMetadata]:
         """Return all discovered skill metadata for system prompt inclusion."""
         return list(self._metadata.values())
 

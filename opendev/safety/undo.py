@@ -12,7 +12,7 @@ import difflib
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class UndoManager:
     """
 
     def __init__(self, max_history: int = 50):
-        self._history: list[UndoRecord] = []
+        self._history: List[UndoRecord] = []
         self._max_history = max_history
 
     def record_change(
@@ -100,7 +100,7 @@ class UndoManager:
 
         return count
 
-    def pre_hook_handler(self, tool_name: str, args: dict[str, Any]) -> None:
+    def pre_hook_handler(self, tool_name: str, args: Dict[str, Any]) -> None:
         """
         Pre-tool hook to capture file state before an edit.
         (Called via ToolRegistry).

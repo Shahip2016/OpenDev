@@ -12,7 +12,7 @@ import time
 import uuid
 from collections import deque
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -37,7 +37,7 @@ class ToolCall(BaseModel):
     """A single tool invocation requested by the LLM."""
     id: str = Field(default_factory=lambda: f"call_{uuid.uuid4().hex[:12]}")
     name: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    arguments: Dict[str, Any] = Field(default_factory=dict)
 
     @property
     def fingerprint(self) -> str:
@@ -63,15 +63,15 @@ class Message(BaseModel):
     """A single message in the conversation."""
     role: Role
     content: Optional[str] = None
-    tool_calls: list[ToolCall] = Field(default_factory=list)
+    tool_calls: List[ToolCall] = Field(default_factory=list)
     tool_call_id: Optional[str] = None  # For role=tool messages
     name: Optional[str] = None
     timestamp: float = Field(default_factory=time.time)
     token_count: Optional[int] = None  # API-reported token count
 
-    def to_api_format(self) -> dict[str, Any]:
+    def to_api_format(self) -> Dict[str, Any]:
         """Convert to OpenAI-compatible message format."""
-        msg: dict[str, Any] = {"role": self.role.value}
+        msg: Dict[str, Any] = {"role": self.role.value}
 
         if self.content is not None:
             msg["content"] = self.content
@@ -112,7 +112,7 @@ class ConversationHistory:
     """
 
     def __init__(self) -> None:
-        self._messages: list[Message] = []
+        self._messages: List[Message] = []
 
     def add(self, message: Message) -> None:
         """Add a message to the history."""
@@ -124,7 +124,7 @@ class ConversationHistory:
     def add_assistant(
         self,
         content: Optional[str] = None,
-        tool_calls: Optional[list[ToolCall]] = None,
+        tool_calls: Optional[List[ToolCall]] = None,
     ) -> None:
         self.add(Message(
             role=Role.ASSISTANT,
@@ -144,18 +144,18 @@ class ConversationHistory:
         self.add(Message(role=Role.SYSTEM, content=content))
 
     @property
-    def messages(self) -> list[Message]:
+    def messages(self) -> List[Message]:
         return list(self._messages)
 
     @property
     def last_n(self) -> int:
         return len(self._messages)
 
-    def get_recent(self, n: int) -> list[Message]:
+    def get_recent(self, n: int) -> List[Message]:
         """Get the last n messages."""
         return self._messages[-n:]
 
-    def to_api_format(self) -> list[dict[str, Any]]:
+    def to_api_format(self) -> List[Dict[str, Any]]:
         """Convert entire history to OpenAI-compatible format."""
         return [m.to_api_format() for m in self._messages]
 
@@ -167,12 +167,12 @@ class ConversationHistory:
         if 0 <= index < len(self._messages):
             self._messages[index] = new_message
 
-    def serialize(self) -> list[dict[str, Any]]:
+    def serialize(self) -> List[Dict[str, Any]]:
         """Serialize all messages for persistence."""
         return [m.model_dump() for m in self._messages]
 
     @classmethod
-    def deserialize(cls, data: list[dict[str, Any]]) -> "ConversationHistory":
+    def deserialize(cls, data: List[Dict[str, Any]]) -> "ConversationHistory":
         """Restore from serialized data."""
         history = cls()
         for item in data:
@@ -195,7 +195,7 @@ class IterationContext(BaseModel):
     max_iterations: int = 100
 
     # Doom-loop detection  (sliding window of recent fingerprints)
-    fingerprints: list[str] = Field(default_factory=list)
+    fingerprints: List[str] = Field(default_factory=list)
     doom_loop_window: int = 20
     doom_loop_threshold: int = 3
 
@@ -237,7 +237,7 @@ class CommandResult(BaseModel):
     """Result from a REPL command handler."""
     success: bool
     message: str
-    data: Optional[dict[str, Any]] = None
+    data: Optional[Dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +270,7 @@ class CostTracker(BaseModel):
 class ArtifactEntry(BaseModel):
     """A single file operation tracked by the compaction artifact index."""
     path: str
-    operations: list[str] = Field(default_factory=list)  # read, created, modified, deleted
+    operations: List[str] = Field(default_factory=list)  # read, created, modified, deleted
 
 
 class ArtifactIndex(BaseModel):
@@ -280,7 +280,7 @@ class ArtifactIndex(BaseModel):
     Serialized into the compaction summary so the agent remembers which
     files it has worked with even after context is compressed.
     """
-    entries: dict[str, ArtifactEntry] = Field(default_factory=dict)
+    entries: Dict[str, ArtifactEntry] = Field(default_factory=dict)
 
     def record(self, path: str, operation: str) -> None:
         if path not in self.entries:

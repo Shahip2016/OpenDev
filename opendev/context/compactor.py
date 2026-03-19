@@ -12,7 +12,7 @@ Five progressive stages triggered by token thresholds to prevent window exhausti
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, List, Optional, Set, Tuple
 
 from opendev.models import ConversationHistory, Role
 
@@ -35,7 +35,7 @@ class ContextCompactor:
         self,
         max_tokens: int,
         agent: Optional[Any] = None,
-        stage_thresholds: tuple[float, float, float, float, float] = (
+        stage_thresholds: Tuple[float, float, float, float, float] = (
             0.70, 0.80, 0.85, 0.90, 0.99
         ),
     ):
@@ -44,7 +44,7 @@ class ContextCompactor:
         self.t1, self.t2, self.t3, self.t4, self.t5 = stage_thresholds
 
         # Track which mitigations have been applied this session
-        self.applied: set[int] = set()
+        self.applied: Set[int] = set()
 
     def check_and_compact(self, history: ConversationHistory) -> None:
         """

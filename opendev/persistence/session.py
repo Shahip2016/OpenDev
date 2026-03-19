@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from opendev.config import AppConfig
 from opendev.models import ConversationHistory, Message, Role, ToolCall, ToolResult
@@ -78,7 +78,7 @@ class SessionManager:
             logger.error(f"Failed to load session {session_id}: {e}")
             return None
 
-    def list_sessions(self) -> list[str]:
+    def list_sessions(self) -> List[str]:
         """Return a list of available session IDs (sorted by modified time)."""
         if not os.path.isdir(self._dir):
             return []
@@ -104,7 +104,7 @@ class SessionManager:
         return os.path.join(self._dir, f"{safe_id}.jsonl")
 
     @staticmethod
-    def _serialize_msg(msg: Message) -> dict[str, Any]:
+    def _serialize_msg(msg: Message) -> Dict[str, Any]:
         """Convert Message to dict for JSON serialization."""
         data = {
             "role": msg.role.value,
@@ -125,7 +125,7 @@ class SessionManager:
         return data
 
     @staticmethod
-    def _deserialize_msg(data: dict[str, Any]) -> Message:
+    def _deserialize_msg(data: Dict[str, Any]) -> Message:
         """Convert dict from JSON into Message object."""
         role = Role(data["role"])
 

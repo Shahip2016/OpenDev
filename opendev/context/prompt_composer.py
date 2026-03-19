@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Dict, List, Tuple
 
 from opendev.config import AppConfig
 
@@ -19,7 +19,7 @@ from opendev.config import AppConfig
 class PromptSection:
     id: str
     priority: int
-    condition: Callable[[dict[str, Any]], bool]
+    condition: Callable[[Dict[str, Any]], bool]
     cacheable: bool
     content: str
 
@@ -31,19 +31,19 @@ class PromptComposer:
 
     def __init__(self, config: AppConfig):
         self._config = config
-        self._sections: list[PromptSection] = []
+        self._sections: List[PromptSection] = []
 
     def register(self, section: PromptSection) -> None:
         """Register a prompt section."""
         self._sections.append(section)
 
-    def compose(self, context: dict[str, Any]) -> str:
+    def compose(self, context: Dict[str, Any]) -> str:
         """Standard compilation (all sections combined)."""
         active = [s for s in self._sections if s.condition(context)]
         active.sort(key=lambda s: s.priority)
         return "\n\n".join(s.content for s in active)
 
-    def compose_two_part(self, context: dict[str, Any]) -> tuple[str, str]:
+    def compose_two_part(self, context: Dict[str, Any]) -> Tuple[str, str]:
         """
         Two-part compilation for prompt caching.
         Returns (stable_content, dynamic_content).

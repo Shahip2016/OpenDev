@@ -8,7 +8,7 @@ services and registers its tools with the ToolRegistry.
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any
+from typing import Any, Dict, List
 
 
 class BaseHandler(ABC):
@@ -22,7 +22,7 @@ class BaseHandler(ABC):
     def __init__(self, working_dir: str = "."):
         self._working_dir = working_dir
 
-    def get_tool_definitions(self) -> list[dict[str, Any]]:
+    def get_tool_definitions(self) -> List[Dict[str, Any]]:
         """
         Return list of tool definitions for registration.
 

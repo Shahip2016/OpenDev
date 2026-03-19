@@ -15,7 +15,7 @@ Approval levels:
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, Dict, List
 
 from opendev.config import AgentMode, ApprovalLevel
 
@@ -34,7 +34,7 @@ class ModeManager:
 
     def __init__(self, initial_mode: AgentMode = AgentMode.SEMI_AUTO):
         self._mode = initial_mode
-        self._listeners: list[Callable[[AgentMode], None]] = []
+        self._listeners: List[Callable[[AgentMode], None]] = []
 
     def get_mode(self) -> AgentMode:
         return self._mode
@@ -89,7 +89,7 @@ class ApprovalManager:
             "run_command": ApprovalLevel.HIGH,
         }
 
-    def requires_approval(self, tool_name: str, args: dict[str, Any]) -> bool:
+    def requires_approval(self, tool_name: str, args: Dict[str, Any]) -> bool:
         """
         Determine if the action requires human approval.
 
@@ -126,7 +126,7 @@ class ApprovalManager:
 
         return True
 
-    def request_approval(self, tool_name: str, args: dict[str, Any]) -> bool:
+    def request_approval(self, tool_name: str, args: Dict[str, Any]) -> bool:
         """Request approval from the user via the UI callback."""
         if not self.requires_approval(tool_name, args):
             return True

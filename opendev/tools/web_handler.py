@@ -9,7 +9,7 @@ Provides browser integration via Playwright:
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from opendev.models import ToolResult
 from opendev.tools.base_handler import BaseHandler
@@ -22,7 +22,7 @@ class WebHandler(BaseHandler):
         super().__init__(working_dir)
         self._browser_context: Any = None
 
-    def get_tool_definitions(self) -> list[dict[str, Any]]:
+    def get_tool_definitions(self) -> List[Dict[str, Any]]:
         return [
             {
                 "name": "browse_url",
@@ -62,7 +62,7 @@ class WebHandler(BaseHandler):
             },
         ]
 
-    def browse_url(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def browse_url(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """Fetch URL content and convert to markdown."""
         url = args.get("url", "")
         if not url:
@@ -77,7 +77,7 @@ class WebHandler(BaseHandler):
             summary=f"Browsed {url}",
         )
 
-    def screenshot(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def screenshot(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """Take a screenshot of a page."""
         url = args.get("url", "")
         filename = args.get("filename", "screenshot.png")

@@ -18,7 +18,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from opendev.models import ToolResult
 from opendev.tools.base_handler import BaseHandler
@@ -39,7 +39,7 @@ class FileTimeTracker:
     """
 
     def __init__(self):
-        self._read_times: dict[str, float] = {}
+        self._read_times: Dict[str, float] = {}
 
     def record_read(self, path: str) -> None:
         self._read_times[os.path.abspath(path)] = time.time()
@@ -87,7 +87,7 @@ class FileHandler(BaseHandler):
         super().__init__(working_dir)
         self.file_tracker = FileTimeTracker()
 
-    def get_tool_definitions(self) -> list[dict[str, Any]]:
+    def get_tool_definitions(self) -> List[Dict[str, Any]]:
         return [
             {"name": "read_file", "handler": self.read_file, "schema": {}},
             {"name": "write_file", "handler": self.write_file, "schema": {}},
@@ -98,7 +98,7 @@ class FileHandler(BaseHandler):
 
     # -- read_file ----------------------------------------------------------
 
-    def read_file(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def read_file(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """
         Read file with line numbers. Handles binary detection,
         offset/max_lines pagination, and head-tail truncation for
@@ -166,7 +166,7 @@ class FileHandler(BaseHandler):
 
     # -- write_file ---------------------------------------------------------
 
-    def write_file(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def write_file(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """Create a new file. Rejects overwrites of existing files."""
         file_path = args.get("file_path", "")
         content = args.get("content", "")
@@ -202,7 +202,7 @@ class FileHandler(BaseHandler):
 
     # -- edit_file ----------------------------------------------------------
 
-    def edit_file(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def edit_file(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """
         Edit file using 9-pass fuzzy matching chain (Appendix D).
 
@@ -278,7 +278,7 @@ class FileHandler(BaseHandler):
 
     # -- list_files ---------------------------------------------------------
 
-    def list_files(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def list_files(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """List directory contents with .gitignore-aware filtering."""
         path = args.get("path", ".")
         pattern = args.get("pattern", "*")
@@ -323,7 +323,7 @@ class FileHandler(BaseHandler):
 
     # -- search -------------------------------------------------------------
 
-    def search(self, args: dict[str, Any], **kwargs: Any) -> ToolResult:
+    def search(self, args: Dict[str, Any], **kwargs: Any) -> ToolResult:
         """
         Dual-mode search: text (regex) or ast (structural patterns).
 

@@ -7,7 +7,7 @@ the next LLM action call, countering instruction fade-out.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List
 
 from opendev.models import ConversationHistory, Role
 
@@ -20,7 +20,7 @@ class ReminderSystem:
     def check_and_inject(
         self,
         history: ConversationHistory,
-        state: dict[str, Any]
+        state: Dict[str, Any]
     ) -> None:
         """Analyze state and inject reminder if conditions met."""
         messages = history.messages
@@ -49,14 +49,14 @@ class ReminderSystem:
                 state["exploration_nudge_sent"] = True
                 return
 
-    def _detect_tool_failures(self, messages: list) -> bool:
+    def _detect_tool_failures(self, messages: List) -> bool:
         """Look for 3 consecutive tool failures."""
         tool_results = [m for m in messages[-6:] if m.role == Role.TOOL]
         if len(tool_results) < 3:
             return False
         return all("Error" in (m.content or "") for m in tool_results[-3:])
 
-    def _detect_exploration_spiral(self, messages: list) -> bool:
+    def _detect_exploration_spiral(self, messages: List) -> bool:
         """Look for 5+ sequential read_file or list_files calls."""
         tools_called = []
         for m in messages[-10:]:
